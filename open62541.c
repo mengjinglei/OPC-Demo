@@ -20,6 +20,7 @@
 #endif
 
 #include "open62541.h"
+#include "stdio.h"
 
 /*********************************** amalgamated original file "/home/travis/build/open62541/open62541/deps/queue.h" ***********************************/
 
@@ -18388,11 +18389,14 @@ UA_StatusCode UA_Server_run_startup(UA_Server *server) {
 #endif
 
     /* Start the networklayers */
+    printf("\nstart the network layers %lu\n",server->config.networkLayersSize);
     UA_StatusCode result = UA_STATUSCODE_GOOD;
     for(size_t i = 0; i < server->config.networkLayersSize; ++i) {
         UA_ServerNetworkLayer *nl = &server->config.networkLayers[i];
+        printf("\n%lu\n",i);
         result |= nl->start(nl, server->config.logger);
     }
+    printf("\nstart the network layers\n");
 
     return result;
 }
@@ -18530,9 +18534,15 @@ UA_StatusCode UA_Server_run_shutdown(UA_Server *server) {
 }
 
 UA_StatusCode UA_Server_run(UA_Server *server, volatile UA_Boolean *running) {
+    printf("\n>>>> \n");
     UA_StatusCode retval = UA_Server_run_startup(server);
+    printf(">>> 1.status %d",retval);
+
     if(retval != UA_STATUSCODE_GOOD)
         return retval;
+    
+    printf("2. status %d",retval);
+
     while(*running)
         UA_Server_run_iterate(server, true);
     return UA_Server_run_shutdown(server);
