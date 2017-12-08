@@ -1,5 +1,7 @@
 package main
 
+import "time"
+import "fmt"
 /*
 #include <signal.h>
 #include <stdio.h>
@@ -79,11 +81,8 @@ static void stopHandler(int sign) {
     running = false;
 }
 
-UA_ServerConfig newConfig(int port){
-    signal(SIGINT, stopHandler);
-    signal(SIGTERM, stopHandler);
-
-    UA_ServerConfig config = UA_ServerConfig_standard;
+UA_ServerConfig initConfig(UA_ServerConfig config){
+ 
     UA_ServerNetworkLayer nl =
         UA_ServerNetworkLayerTCP(UA_ConnectionConfig_standard, 16664);
     config.networkLayers = &nl;
@@ -124,7 +123,7 @@ int main_server(void) {
     return 0;
 }
 
-int run_server(void){
+int main_loop(UA_Server* server){
     // main_server();
     signal(SIGINT, stopHandler);
     signal(SIGTERM, stopHandler);
@@ -135,8 +134,7 @@ int run_server(void){
     config.networkLayers = &nl;
     config.networkLayersSize = 1;
 
-    UA_Server *server = UA_Server_new(config);
-    
+    server = UA_Server_new(config);
     printf("new server \n");
     addVariable(server);
     printf(">> add variable done \n");
@@ -154,6 +152,13 @@ int run_server(void){
 import "C"
 
 func main() {
-    go run 
-    return;
+    var server C.UA_Server;
+    fmt.Println(">>>>",&server)
+    go func(){
+        C.main_loop(&server);
+    }()
+    time.Sleep(time.Second*2)
+    fmt.Println(">>>>",&server)
+    C.writeVariable(&server,66)
+    time.Sleep(time.Second*1000)
 }

@@ -1,6 +1,9 @@
 #include <signal.h>
 #include <stdio.h>
 #include "open62541.h"
+#include <pthread.h>
+#include <unistd.h>
+#include <stdlib.h>
 
 static void
 addVariable(UA_Server *server) {
@@ -27,30 +30,36 @@ static void
 writeVariable(UA_Server *server, int answer) {
     UA_NodeId myIntegerNodeId = UA_NODEID_STRING(1, "the.answer");
 
+    srand( (unsigned) time(NULL));
     //Write a different integer value //
-    UA_Int32 myInteger = answer;
-    UA_Variant myVar;
-    UA_Variant_init(&myVar);
-    UA_Variant_setScalar(&myVar, &myInteger, &UA_TYPES[UA_TYPES_INT32]);
-    UA_Server_writeValue(server, myIntegerNodeId, myVar);
+    while(1){
+        sleep(1);
+        answer = rand()%100+1;
+        UA_Int32 myInteger = answer;
+        UA_Variant myVar;
+        UA_Variant_init(&myVar);
+        UA_Variant_setScalar(&myVar, &myInteger, &UA_TYPES[UA_TYPES_INT32]);
+        UA_Server_writeValue(server, myIntegerNodeId, myVar);
 
-    //Set the status code of the value to an error code. The function
-    //  * UA_Server_write provides access to the raw service. The above
-    //  * UA_Server_writeValue is syntactic sugar for writing a specific node
-    //  * attribute with the write service. //
-    UA_WriteValue wv;
-    UA_WriteValue_init(&wv);
-    wv.nodeId = myIntegerNodeId;
-    wv.attributeId = UA_ATTRIBUTEID_VALUE;
-    wv.value.status = UA_STATUSCODE_BADNOTCONNECTED;
-    wv.value.hasStatus = true;
-    UA_Server_write(server, &wv);
+        //Set the status code of the value to an error code. The function
+        //  * UA_Server_write provides access to the raw service. The above
+        //  * UA_Server_writeValue is syntactic sugar for writing a specific node
+        //  * attribute with the write service. //
+        UA_WriteValue wv;
+        UA_WriteValue_init(&wv);
+        wv.nodeId = myIntegerNodeId;
+        wv.attributeId = UA_ATTRIBUTEID_VALUE;
+        wv.value.status = UA_STATUSCODE_BADNOTCONNECTED;
+        wv.value.hasStatus = true;
+        UA_Server_write(server, &wv);
 
-    //Reset the variable to a good statuscode with a value //
-    wv.value.hasStatus = false;
-    wv.value.value = myVar;
-    wv.value.hasValue = true;
-    UA_Server_write(server, &wv);
+        //Reset the variable to a good statuscode with a value //
+        wv.value.hasStatus = false;
+        wv.value.value = myVar;
+        wv.value.hasValue = true;
+        UA_Server_write(server, &wv);
+        printf("\nwrite: %d success\n",answer);
+    }
 }
 
 static void
@@ -133,9 +142,9 @@ int main_loop(UA_Server* server){
     printf("new server \n");
     addVariable(server);
     printf(">> add variable done \n");
-    writeVariable(server,44);
+    // writeVariable(server,44);
     printf(">> write variable done \n");
-    writeWrongVariable(server);
+    // writeWrongVariable(server);
     printf(">>> write donw");
     // UA_Boolean running = true;
     runServer(server);
@@ -143,11 +152,29 @@ int main_loop(UA_Server* server){
     return 0;
 }
 int main(void){
-    UA_Server *server;
-    main_loop(server);
-    if (server == NULL){
-        printf("is null %d",1);
+
+    signal(SIGINT, stopHandler);
+    signal(SIGTERM, stopHandler);
+
+    UA_ServerConfig config = UA_ServerConfig_standard;
+    UA_ServerNetworkLayer nl =
+        UA_ServerNetworkLayerTCP(UA_ConnectionConfig_standard, 16664);
+    config.networkLayers = &nl;
+    config.networkLayersSize = 1;
+
+    UA_Server *server = UA_Server_new(config);
+    printf("\nnew server \n");
+    addVariable(server);
+
+    pthread_t writeThread;
+    int ret_thrd = pthread_create(&writeThread, NULL, (void *)&runServer,(void *) server);
+    if (ret_thrd != 0){
+        printf("\nwrite thread create fail\n");
     }else{
-        printf("is not null %d",1);
+        printf("\nwrite thread create success\n");
     }
+
+    sleep(2);
+    writeVariable(server,66);
+
 }
